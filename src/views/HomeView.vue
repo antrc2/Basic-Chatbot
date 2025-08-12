@@ -99,7 +99,7 @@ export default {
       })
       userInput.value = ""
       let data = { messages: messages.value }
-      const response = await fetch("http://localhost:4999/", {
+      const response = await fetch("http://localhost:5000/assistant/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -124,16 +124,16 @@ export default {
         const { value, done } = await reader.read();
         if (done) break; // Dừng vòng lặp nếu stream kết thúc
         const text = decoder.decode(value); // Giữ lại dữ liệu không đầy đủ
-        // console.log(text);
+        console.log(text);
 
         if (text === "[END]") break;
         if (text !== "[START]") {
-          generated_text += text;
-          console.log(generated_text)
+          generated_text = JSON.parse(text);
+          // console.log(generated_text.messages[generated_text.messages.length - 1].content);
 
           const i = messages.value.length - 1;
           if (i >= 0) {
-            messages.value[i].content = generated_text;
+            messages.value[i].content = generated_text.messages[generated_text.messages.length - 1].content;
           }
 
           window.scrollBy(0, 100);
