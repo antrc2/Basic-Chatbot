@@ -3,12 +3,8 @@
     <aside class="col-3 bg-light p-3 border-end overflow-auto">
       <h2 class="h6 text-uppercase mb-3">Lịch sử Chat</h2>
       <ul class="list-group small">
-        <li
-          class="list-group-item list-group-item-action"
-          v-for="(chat, index) in chatHistory"
-          :key="index"
-          @click="loadChat(index)"
-        >
+        <li class="list-group-item list-group-item-action" v-for="(chat, index) in chatHistory" :key="index"
+          @click="loadChat(index)">
           {{ chat.title || `Phiên #${index + 1}` }}
         </li>
       </ul>
@@ -16,11 +12,8 @@
 
     <main class="col d-flex flex-column">
       <header class="d-flex justify-content-end align-items-center gap-2 bg-secondary p-2">
-        <RouterLink
-          v-if="checkLogin() !== null && userRoleId === 2"
-          :to="{ name: 'dashboard' }"
-          class="btn btn-danger btn-sm"
-        >
+        <RouterLink v-if="checkLogin() !== null && userRoleId === 2" :to="{ name: 'dashboard' }"
+          class="btn btn-danger btn-sm">
           Trang quản trị
         </RouterLink>
 
@@ -87,12 +80,14 @@
                 <!-- Phản hồi từ tool: role === 'tool' hoặc có tool_response -->
                 <div v-if="msg.role === 'tool' || msg.tool_response">
                   <h6 class="mb-2">Phản hồi từ tool</h6>
-                  <div class="border rounded p-2 bg-body">
-                    <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
-                      <span class="badge bg-info-subtle text-info-emphasis">Tool</span>
-                      <code class="small">{{ msg.tool_name || msg.name || '—' }}</code>
+                  <div v-if="Array.isArray(parsedToolResponse(msg))">
+                    <div v-for="(item, idx) in parsedToolResponse(msg)" :key="idx"
+                      class="border rounded p-2 mb-2 bg-body">
+                      <pre class="mb-0 small">{{ pretty(item) }}</pre>
                     </div>
-                    <pre class="mb-0 small">{{ typeof msg.tool_response === 'string' ? msg.tool_response : pretty(msg.tool_response ?? msg.content) }}</pre>
+                  </div>
+                  <div v-else class="border rounded p-2 bg-body">
+                    <pre class="mb-0 small">{{ pretty(parsedToolResponse(msg)) }}</pre>
                   </div>
                 </div>
 
@@ -115,12 +110,8 @@
       </div>
 
       <footer class="d-flex p-3 bg-light border-top">
-        <input
-          v-model="userInput"
-          @keyup.enter="sendMessage"
-          class="form-control me-2"
-          placeholder="Nhập tin nhắn..."
-        />
+        <input v-model="userInput" @keyup.enter="sendMessage" class="form-control me-2"
+          placeholder="Nhập tin nhắn..." />
         <button @click="sendMessage" class="btn btn-success">Gửi</button>
       </footer>
     </main>
@@ -233,6 +224,40 @@ export default {
         default:
           return "border-secondary";
       }
+    };
+    const parsedToolResponse = (msg) => {
+      let raw = msg.tool_response ?? msg.content;
+      if (typeof raw === 'string') {
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed;
+        } catch {
+          return raw;
+        }
+      }
+      return raw;
+    };
+    const deepParseJSON = (val) => {
+      let out = val;
+      for (let i = 0; i < 2; i++) {
+        if (typeof out === 'string') {
+          try {
+            const s = out.trim();
+            const looksJson = (s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'));
+            if (!looksJson) break;
+            out = JSON.parse(s);
+          } catch {
+            break;
+          }
+        }
+      }
+      return out;
+    };
+
+    // Lấy dữ liệu phản hồi từ tool (có thể là msg.tool_response hoặc msg.content)
+    const toolData = (msg) => {
+      const raw = msg.tool_response ?? msg.content;
+      return deepParseJSON(raw);
     };
     const roleBadgeClass = (role) => {
       switch (role) {
@@ -355,6 +380,9 @@ export default {
       handleLoginSuccess,
       handleLogout,
       checkLogin,
+      pretty,
+      safeJson,
+      toolData,
       convertMarkdown,
       sendMessage,
       userRoleId,
@@ -362,6 +390,7 @@ export default {
       pretty,
       safeJson,
       roleCardClass,
+      parsedToolResponse,
       roleBadgeClass,
       formatTime,
       loadChat: (i) => console.log("load chat", i),
@@ -375,14 +404,17 @@ export default {
   border: 1px solid var(--bs-border-color) !important;
   background: none !important;
 }
+
 .chat-markdown td,
 .chat-markdown th {
   border: 1px solid var(--bs-border-color) !important;
   padding: .25rem .5rem;
 }
+
 .chat-markdown tr:nth-child(odd) {
   background-color: #f7f7f8 !important;
 }
+
 .chat-markdown tr:nth-child(even) {
   background-color: #fff !important;
 }
@@ -395,5 +427,7 @@ export default {
   overflow: auto;
 }
 
-.tool-block h6 { font-weight: 600; }
+.tool-block h6 {
+  font-weight: 600;
+}
 </style>
